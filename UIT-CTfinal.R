@@ -92,13 +92,13 @@ allocate_integers <- function(p, total_N) {
   # 1. Decimal targets calculate karein
   target <- outer(p, rep(1 / C, C)) * total_N
   
-  # 2. Base allocation (sirf integer part lein)
+  # 2. Base allocation 
   N_mat <- floor(target)
   
-  # 3. Bache hue observations (remainder) nikalen
+  # 3. remainder observations
   rem <- total_N - sum(N_mat)
   
-  # 4. Agar kuch bacha hai, toh sabse bade fractions walo ko de dein
+  # 4.  remainder observations allocation largest fractions cell
   if (rem > 0) {
     frac <- as.vector(target - floor(target))
     idx <- order(frac, decreasing = TRUE, method = "radix")[seq_len(rem)]
