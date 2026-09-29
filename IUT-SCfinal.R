@@ -56,7 +56,7 @@ factor_b_levels <- c("Residential", "Industrial", "Sensitive")
 K <- length(factor_a_levels)   # 3
 C <- length(factor_b_levels)   # 3
 m <- K - 1                     # 2
-N_total <- 165
+N_total <- 65
 alpha   <- 0.05
 c_alpha <- qnorm(1 - alpha / 2)
 n_sim   <- 100000
