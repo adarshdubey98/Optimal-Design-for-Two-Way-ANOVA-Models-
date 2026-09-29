@@ -1,9 +1,9 @@
 # =============================================================================
-# IUT SUCCESSIVE COMPARISON DESIGN (SO2 TIERS x LOCATION TYPE)
+# IUT SUCCESSIVE COMPARISON DESIGN (NO2 TIERS x LOCATION TYPE)
 #
 # Computational structure: 
-# 1. Data load & feature engineering (3 Exact Quantiles/Tertiles of NO2)
-# 2. Fixed cell means and pooled SD (Table 4)
+# 1. Data load & feature engineering (3 Exact Tertiles of NO2 x 3 Locations)
+# 2. Fixed cell means and pooled SD
 # 3. Exact two-sided IUT power evaluation via multivariate normal
 # 4. Max-min design optimization (1D line search)
 # 5. Robust integer allocation (Hamilton's method)
@@ -24,46 +24,45 @@ set.seed(27092026)
 # =============================================================================
 
 df <- read.csv("cpcb_dly_aq_uttar_pradesh-2011.csv", check.names = FALSE, na.strings = c("NA", ""))
-colnames(df) <- gsub(" ", "_", colnames(df))
-colnames(df) <- gsub("/", "_", colnames(df))
+colnames(df) <- gsub("[ /]", "_", colnames(df))
 
-df$Sampling_Date <- as.Date(df$Sampling_Date, format = "%d/%m/%Y")
-df$Month <- as.numeric(format(df$Sampling_Date, "%m"))
-df$SO2 <- as.numeric(df$SO2)
 df$RSPM_PM10 <- as.numeric(df$RSPM_PM10)
+df$NO2       <- as.numeric(df$NO2)
 
 # --- Generate exactly 3 groups using Tertiles (33.33% and 66.67%) ---
-quants <- quantile(df$SO2, probs = c(0, 1/3, 2/3, 1), na.rm = TRUE)
+quants <- quantile(df$NO2, probs = c(0, 1/3, 2/3, 1), na.rm = TRUE)
 
 df_clean <- df %>%
-  filter(!is.na(RSPM_PM10), !is.na(SO2), !is.na(Month)) %>%
+  filter(!is.na(RSPM_PM10), !is.na(NO2), !is.na(Type_of_Location)) %>%
   mutate(
-    SO2_Tier = case_when(
-      SO2 <= quants[2]                  ~ "Tier 1: Low SO2",
-      SO2 >  quants[2] & SO2 <= quants[3] ~ "Tier 2: Mid SO2",
-      SO2 >  quants[3]                  ~ "Tier 3: High SO2"
+    NO2_Tier = case_when(
+      NO2 <= quants[2]                  ~ "Tier 1: Low NO2",
+      NO2 >  quants[2] & NO2 <= quants[3] ~ "Tier 2: Mid NO2",
+      NO2 >  quants[3]                  ~ "Tier 3: High NO2"
     ),
-    Season = case_when(
-      Month %in% c(7, 8, 9, 10)  ~ "Season 1: Monsoon",
-      Month %in% c(3, 4, 5, 6)   ~ "Season 2: Summer",
-      Month %in% c(11, 12, 1, 2) ~ "Season 3: Winter"
+    Location = case_when(
+      grepl("Residential", Type_of_Location) ~ "Residential",
+      grepl("Industrial",  Type_of_Location) ~ "Industrial",
+      grepl("Sensitive",   Type_of_Location) ~ "Sensitive",
+      TRUE                                   ~ NA_character_
     )
   ) %>%
-  filter(!is.na(SO2_Tier), !is.na(Season))
+  filter(!is.na(NO2_Tier), !is.na(Location))
 
-factor_a_levels <- c("Tier 1: Low SO2", "Tier 2: Mid SO2", "Tier 3: High SO2")
-factor_b_levels <- c("Season 1: Monsoon", "Season 2: Summer", "Season 3: Winter")
+factor_a_levels <- c("Tier 1: Low NO2", "Tier 2: Mid NO2", "Tier 3: High NO2")
+factor_b_levels <- c("Residential", "Industrial", "Sensitive")
+
 # --- Model Parameters ---
 K <- length(factor_a_levels)   # 3
 C <- length(factor_b_levels)   # 3
 m <- K - 1                     # 2
-N_total <- 65
+N_total <- 165
 alpha   <- 0.05
-c_alpha <- qnorm(1 - alpha / 2) # IUT critical value
+c_alpha <- qnorm(1 - alpha / 2)
 n_sim   <- 100000
 
 cat("===============================================================================\n")
-cat("SETUP & CELL COUNTS (3 NO2 TERTILES)\n")
+cat("SETUP & CELL COUNTS (3 NO2 TERTILES x 3 LOCATIONS)\n")
 cat("===============================================================================\n")
 print(table(df_clean$NO2_Tier, df_clean$Location))
 
@@ -80,7 +79,6 @@ cell_stats <- df_clean %>%
     .groups = "drop"
   )
 
-# --- Wide mean matrix ---
 M_sampled <- cell_stats %>%
   select(NO2_Tier, Location, mean) %>%
   pivot_wider(names_from = Location, values_from = mean) %>%
