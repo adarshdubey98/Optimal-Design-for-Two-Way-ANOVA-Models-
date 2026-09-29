@@ -1,5 +1,5 @@
 # =============================================================================
-# IUT SUCCESSIVE COMPARISON DESIGN (NO2 TIERS x LOCATION TYPE)
+# IUT SUCCESSIVE COMPARISON DESIGN (SO2 TIERS x LOCATION TYPE)
 #
 # Computational structure: 
 # 1. Data load & feature engineering (3 Exact Quantiles/Tertiles of NO2)
