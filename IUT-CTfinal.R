@@ -30,8 +30,7 @@ cat("Columns after rename:\n")
 print(colnames(df))
 
 df$RSPM_PM10 <- as.numeric(df$RSPM_PM10)
-city_col <- "City_Town_Village_Area"   # renamed from "City/Town/Village/Area"
-
+city_col <- "City_Town_Village_Area"  
 df_clean <- df %>%
   filter(!is.na(RSPM_PM10), !is.na(Type_of_Location), !is.na(.data[[city_col]]))
 
@@ -48,7 +47,7 @@ df_clean <- df_clean %>%
     Factor_B = factor(Factor_B, levels = factor_b_levels)
   )
 
-# --- Cell-wise statistics from FULL data ---
+# --- Cell-wise statistics from data ---
 cell_stats <- df_clean %>%
   group_by(Factor_A, Factor_B) %>%
   summarise(
@@ -79,7 +78,7 @@ C <- ncol(M_sampled)
 m <- K - 1
 N_total <- 190
 alpha <- 0.05
-c_alpha <- qnorm(1 - alpha / 2) # IUT two-sided without Bonferroni
+c_alpha <- qnorm(1 - alpha / 2) # IUT two-sided critical value without Bonferroni correction
 minimum_cell_count <- 2
 target_power <- 0.90
 maximum_N <- 4000
@@ -109,7 +108,7 @@ cat(sprintf(
 ))
 
 # =============================================================================
-# 3. CONTROL-VERSUS-TREATMENT DESIGN CLASS
+# 3. DESIGN 
 # =============================================================================
 
 design_CT_cells <- function(eta) {
@@ -129,7 +128,7 @@ design_CT_rows <- function(eta) {
 }
 
 # =============================================================================
-# 4. COMPLETE TWO-SIDED IUT POWER AT A SIGN CLASS
+# 4. IUT POWER 
 # =============================================================================
 
 power_IUT_CT_sign_class <- function(eta, delta, k_plus, N_reference = N_total, rel_tol = 1e-8, abs_tol = 1e-10) {
@@ -170,7 +169,7 @@ power_IUT_CT_sign_class <- function(eta, delta, k_plus, N_reference = N_total, r
 }
 
 # =============================================================================
-# 5. WORST-CASE POWER OVER SIGN CLASSES
+# 5. Power at LFC
 # =============================================================================
 
 worst_case_IUT_CT <- function(eta, delta, N_reference = N_total) {
