@@ -2,7 +2,7 @@
 # UIT SUCCESSIVE-COMPARISON DESIGN (K = 3)
 #
 # Computational structure:
-# 1. Data load & feature engineering (3-tier SO2 × Season)
+# 1. Data load & feature engineering (3 Exact Tertiles of SO2 × 3 Locations)
 # 2. Fixed population cell means and pooled SD
 # 3. Robust integer allocation (Hamilton's method with tie-break)
 # 4. UIT power evaluation (Deterministic Miwa integration)
@@ -24,11 +24,8 @@ set.seed(27092026)
 # =============================================================================
 
 df <- read.csv("cpcb_dly_aq_uttar_pradesh-2011.csv", check.names = FALSE, na.strings = c("NA", ""))
-colnames(df) <- gsub(" ", "_", colnames(df))
-colnames(df) <- gsub("/", "_", colnames(df))
+colnames(df) <- gsub("[ /]", "_", colnames(df))
 
-df$Sampling_Date <- as.Date(df$Sampling_Date, format = "%d/%m/%Y")
-df$Month <- as.numeric(format(df$Sampling_Date, "%m"))
 df$SO2 <- as.numeric(df$SO2)
 df$RSPM_PM10 <- as.numeric(df$RSPM_PM10)
 
@@ -36,43 +33,46 @@ df$RSPM_PM10 <- as.numeric(df$RSPM_PM10)
 quants <- quantile(df$SO2, probs = c(0, 1/3, 2/3, 1), na.rm = TRUE)
 
 df_clean <- df %>%
-  filter(!is.na(RSPM_PM10), !is.na(SO2), !is.na(Month)) %>%
+  filter(!is.na(RSPM_PM10), !is.na(SO2), !is.na(Type_of_Location)) %>%
   mutate(
     SO2_Tier = case_when(
       SO2 <= quants[2]                  ~ "Tier 1: Low SO2",
       SO2 >  quants[2] & SO2 <= quants[3] ~ "Tier 2: Mid SO2",
       SO2 >  quants[3]                  ~ "Tier 3: High SO2"
     ),
-    Season = case_when(
-      Month %in% c(7, 8, 9, 10)  ~ "Season 1: Monsoon",
-      Month %in% c(3, 4, 5, 6)   ~ "Season 2: Summer",
-      Month %in% c(11, 12, 1, 2) ~ "Season 3: Winter"
+    Location = case_when(
+      grepl("Residential", Type_of_Location) ~ "Residential",
+      grepl("Industrial",  Type_of_Location) ~ "Industrial",
+      grepl("Sensitive",   Type_of_Location) ~ "Sensitive",
+      TRUE                                   ~ NA_character_
     )
   ) %>%
-  filter(!is.na(SO2_Tier), !is.na(Season))
+  filter(!is.na(SO2_Tier), !is.na(Location))
 
 factor_a_levels <- c("Tier 1: Low SO2", "Tier 2: Mid SO2", "Tier 3: High SO2")
-factor_b_levels <- c("Season 1: Monsoon", "Season 2: Summer", "Season 3: Winter")
+factor_b_levels <- c("Residential", "Industrial", "Sensitive")
+
 # --- Model Parameters ---
 K <- length(factor_a_levels)
 C <- length(factor_b_levels)
 m <- K - 1
-N_total <- 111
+N_total <- 75
 alpha <- 0.05
 n_sim <- 100000
-c_alpha <- qnorm(1 - alpha / (2 * m)) # Bonferroni correction
+c_alpha <- qnorm(1 - alpha / (2 * m)) # Bonferroni correction for UIT
 
 cat("===============================================================================\n")
-cat("SETUP SUMMARY\n")
+cat("SETUP SUMMARY & CELL COUNTS (3 SO2 TERTILES x 3 LOCATIONS)\n")
 cat("===============================================================================\n")
-cat(sprintf("K = %d, C = %d, m = %d, N_total = %d, Bonferroni CV = %.4f\n", K, C, m, N_total, c_alpha))
+cat(sprintf("K = %d, C = %d, m = %d, N_total = %d, Bonferroni CV = %.4f\n\n", K, C, m, N_total, c_alpha))
+print(table(df_clean$SO2_Tier, df_clean$Location))
 
 # =============================================================================
 # 2. FIXED POPULATION CELL MEANS & STATISTICS
 # =============================================================================
 
 cell_stats <- df_clean %>%
-  group_by(SO2_Tier, Season) %>%
+  group_by(SO2_Tier, Location) %>%
   summarise(
     n_obs = n(),
     mean  = mean(RSPM_PM10, na.rm = TRUE),
@@ -82,8 +82,8 @@ cell_stats <- df_clean %>%
 
 # --- Wide mean matrix ---
 M_sampled <- cell_stats %>%
-  select(SO2_Tier, Season, mean) %>%
-  pivot_wider(names_from = Season, values_from = mean) %>%
+  select(SO2_Tier, Location, mean) %>%
+  pivot_wider(names_from = Location, values_from = mean) %>%
   as.data.frame()
 
 rownames(M_sampled) <- M_sampled$SO2_Tier
@@ -107,7 +107,7 @@ print(round(M_sampled, 3))
 cat(sprintf("\nσ̂ (pooled) = %.3f | δ = %.3f | δ/σ = %.4f\n\n", pooled_sd, max_delta, max_delta / pooled_sd))
 
 # =============================================================================
-# 3. ROBUST INTEGER ALLOCATION (Consistent with Script 1)
+# 3. ROBUST INTEGER ALLOCATION
 # =============================================================================
 
 allocate_integers <- function(x, total_N, seed = 26092026) {
