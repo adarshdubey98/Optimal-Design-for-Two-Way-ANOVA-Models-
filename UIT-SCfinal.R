@@ -57,7 +57,7 @@ factor_b_levels <- c("Season 1: Monsoon", "Season 2: Summer", "Season 3: Winter"
 K <- length(factor_a_levels)
 C <- length(factor_b_levels)
 m <- K - 1
-N_total <- 200 ##198
+N_total <- 198 ##200
 alpha <- 0.05
 n_sim <- 100000
 c_alpha <- qnorm(1 - alpha / (2 * m)) # Bonferroni correction for UIT
