@@ -76,7 +76,7 @@ pooled_sd <- sqrt(ss_within / df_within)
 K <- nrow(M_sampled)
 C <- ncol(M_sampled)
 m <- K - 1
-N_total <- 190 #192 
+N_total <- 192 #190 
 alpha <- 0.05
 c_alpha <- qnorm(1 - alpha / 2) # IUT two-sided critical value without Bonferroni correction
 minimum_cell_count <- 2
